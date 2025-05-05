@@ -1,20 +1,17 @@
 
 import { useState } from "react";
-import { Hero } from "@/components/home/Hero";
-import { Features } from "@/components/home/Features";
-import { HowToUse } from "@/components/home/HowToUse";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AuthForm } from "@/components/auth/AuthForm";
+import { AddAgentForm } from "@/components/admin/AddAgentForm";
 import { useToast } from "@/components/ui/use-toast";
 
-const Index = () => {
+const AdminAddAgentPage = () => {
   const { toast } = useToast();
   const [showAuthForm, setShowAuthForm] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(true); // Default to true for demo purposes
+  const [isAdmin, setIsAdmin] = useState(true); // Default to true for demo purposes
   
-  // For demo purposes, we'll simulate login/logout
   const handleLoginClick = () => {
     setShowAuthForm(true);
   };
@@ -28,6 +25,9 @@ const Index = () => {
     });
   };
   
+  // For a real app, we would check if the user is an admin here
+  // and redirect them if they're not
+  
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar 
@@ -37,10 +37,15 @@ const Index = () => {
         onLogout={handleLogout} 
       />
       
-      <main className="flex-grow">
-        <Hero />
-        <Features />
-        <HowToUse />
+      <main className="flex-grow container py-12">
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-brand-navy mb-4">Admin Panel</h1>
+          <p className="text-lg text-gray-600">
+            Use this form to add new AI agents to the platform.
+          </p>
+        </div>
+        
+        <AddAgentForm />
       </main>
       
       <Footer />
@@ -52,4 +57,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default AdminAddAgentPage;
