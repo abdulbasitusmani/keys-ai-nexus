@@ -65,64 +65,64 @@ const AdminManagePackagesPage = () => {
   });
   const [showAddDialog, setShowAddDialog] = useState(false);
   
-  useEffect(() => {
-    const fetchPackages = async () => {
-      if (!isLoggedIn || !isAdmin) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('packages')
-          .select('*')
-          .order('name');
-        
-        if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          // Parse JSON features and convert all entries to strings
-          const formattedPackages: Package[] = data.map(pkg => {
-            let features: string[] = [];
-            
-            try {
-              // Handle different possible types of features data
-              if (typeof pkg.features === 'string') {
-                features = JSON.parse(pkg.features);
-              } else if (Array.isArray(pkg.features)) {
-                features = pkg.features.map(item => String(item));
-              } else if (pkg.features && typeof pkg.features === 'object') {
-                features = Object.values(pkg.features).map(val => String(val));
-              }
-            } catch (err) {
-              console.error('Error parsing features for package:', pkg.id, err);
-              features = [];
-            }
-            
-            return {
-              id: pkg.id,
-              name: pkg.name,
-              description: pkg.description,
-              price: pkg.price,
-              features: features,
-              is_popular: pkg.is_popular || false,
-              created_at: pkg.created_at
-            };
-          });
-          
-          setPackages(formattedPackages);
-        }
-      } catch (error: any) {
-        console.error('Error fetching packages:', error);
-        toast({
-          title: "Error loading packages",
-          description: error.message || "Failed to load packages data.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchPackages = async () => {
+    if (!isLoggedIn || !isAdmin) return;
     
+    try {
+      const { data, error } = await supabase
+        .from('packages')
+        .select('*')
+        .order('name');
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Parse JSON features and convert all entries to strings
+        const formattedPackages: Package[] = data.map(pkg => {
+          let features: string[] = [];
+          
+          try {
+            // Handle different possible types of features data
+            if (typeof pkg.features === 'string') {
+              features = JSON.parse(pkg.features);
+            } else if (Array.isArray(pkg.features)) {
+              features = pkg.features.map(item => String(item));
+            } else if (pkg.features && typeof pkg.features === 'object') {
+              features = Object.values(pkg.features).map(val => String(val));
+            }
+          } catch (err) {
+            console.error('Error parsing features for package:', pkg.id, err);
+            features = [];
+          }
+          
+          return {
+            id: pkg.id,
+            name: pkg.name,
+            description: pkg.description,
+            price: pkg.price,
+            features: features,
+            is_popular: pkg.is_popular || false,
+            created_at: pkg.created_at
+          };
+        });
+        
+        setPackages(formattedPackages);
+      }
+    } catch (error: any) {
+      console.error('Error fetching packages:', error);
+      toast({
+        title: "Error loading packages",
+        description: error.message || "Failed to load packages data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
     fetchPackages();
   }, [isLoggedIn, isAdmin, toast]);
   
@@ -253,18 +253,30 @@ const AdminManagePackagesPage = () => {
       }
       
       // Convert price to number if it's a numeric string
-      const priceValue = newPackage.price === 'Custom' ? 
-        'Custom' : 
-        typeof newPackage.price === 'string' && !isNaN(parseFloat(newPackage.price as string)) ? 
-          parseFloat(newPackage.price as string) : 
-          newPackage.price;
+      let priceValue: number | string;
+      
+      if (newPackage.price === 'Custom') {
+        priceValue = 'Custom';
+      } else {
+        // Ensure price is a valid number
+        const numericPrice = parseFloat(String(newPackage.price));
+        if (isNaN(numericPrice)) {
+          toast({
+            title: "Invalid price",
+            description: "Price must be a number or 'Custom'.",
+            variant: "destructive",
+          });
+          return;
+        }
+        priceValue = numericPrice;
+      }
       
       const { data, error } = await supabase
         .from('packages')
         .insert({
           name: newPackage.name,
           description: newPackage.description,
-          price: priceValue,
+          price: typeof priceValue === 'number' ? priceValue : 0, // Store 0 for Custom in database
           features: newPackage.features,
           is_popular: newPackage.is_popular
         })
@@ -280,7 +292,7 @@ const AdminManagePackagesPage = () => {
           id: data[0].id,
           name: data[0].name,
           description: data[0].description,
-          price: data[0].price,
+          price: typeof priceValue === 'string' ? priceValue : data[0].price,
           features: Array.isArray(data[0].features) ? 
             data[0].features.map(f => String(f)) : 
             [],
