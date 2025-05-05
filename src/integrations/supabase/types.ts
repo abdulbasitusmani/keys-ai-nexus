@@ -72,6 +72,24 @@ export type Database = {
         }
         Relationships: []
       }
+      json: {
+        Row: {
+          created_at: string
+          id: number
+          "json file": Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          "json file"?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          "json file"?: Json | null
+        }
+        Relationships: []
+      }
       packages: {
         Row: {
           created_at: string

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -30,13 +29,14 @@ const PackagesPage = () => {
           // Convert the packages data from Supabase to the PricingTier format
           const formattedPackages: PricingTier[] = data.map(pkg => {
             // Parse features if they're stored as a JSON string
-            let features: string[];
+            let features: string[] = [];
             try {
               if (typeof pkg.features === 'string') {
                 features = JSON.parse(pkg.features);
               } else if (Array.isArray(pkg.features)) {
-                features = pkg.features;
-              } else {
+                // Convert each item in the array to a string
+                features = pkg.features.map(item => String(item));
+              } else if (pkg.features && typeof pkg.features === 'object') {
                 // Handle case where features might be a JSONB object
                 features = Object.values(pkg.features).map(val => String(val));
               }
@@ -52,7 +52,7 @@ const PackagesPage = () => {
               description: pkg.description,
               price: pkg.price,
               features: features,
-              isPopular: pkg.is_popular
+              isPopular: pkg.is_popular || false
             };
           });
           
