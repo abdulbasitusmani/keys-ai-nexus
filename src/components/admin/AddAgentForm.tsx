@@ -46,7 +46,7 @@ export function AddAgentForm({ onAgentAdded }: AddAgentFormProps) {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       // Validate file type
-      if (!selectedFile.name.endsWith('.json')) {
+      if (!selectedFile.type.includes('json') && !selectedFile.name.endsWith('.json')) {
         toast({
           title: "Invalid file type",
           description: "Please upload a .json file",
@@ -67,19 +67,22 @@ export function AddAgentForm({ onAgentAdded }: AddAgentFormProps) {
 
       // Upload JSON file to storage if provided
       if (file) {
-        const fileName = `${Date.now()}_${file.name}`;
-        
-        // Create storage bucket if it doesn't exist
-        const { data: bucketData, error: bucketError } = await supabase
-          .storage
-          .getBucket('agent-configs');
-          
-        if (bucketError && bucketError.message.includes('The resource was not found')) {
-          // Create the bucket if it doesn't exist
-          await supabase.storage.createBucket('agent-configs', {
-            public: false,
-          });
+        // Check if bucket exists and create if needed
+        try {
+          const { data: bucketData } = await supabase.storage.getBucket('agent-configs');
+          if (!bucketData) {
+            await supabase.storage.createBucket('agent-configs', { public: false });
+          }
+        } catch (error: any) {
+          // If bucket doesn't exist, create it
+          if (error.message && error.message.includes('not found')) {
+            await supabase.storage.createBucket('agent-configs', { public: false });
+          } else {
+            throw error;
+          }
         }
+        
+        const fileName = `${Date.now()}_${file.name}`;
         
         // Upload file
         const { data: uploadData, error: uploadError } = await supabase
@@ -229,7 +232,7 @@ export function AddAgentForm({ onAgentAdded }: AddAgentFormProps) {
             <Input
               id="agent-json-file"
               type="file"
-              accept=".json"
+              accept=".json,application/json"
               required
               onChange={handleFileChange}
             />

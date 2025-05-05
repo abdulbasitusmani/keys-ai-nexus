@@ -18,15 +18,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
+// Define the Agent type
+interface Agent {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  importance: string;
+  created_at: string;
+  how_to_use?: string;
+  json_file_url?: string;
+  created_by?: string;
+}
+
 const AdminAddAgentPage = () => {
   const { toast } = useToast();
   const [showAuthForm, setShowAuthForm] = useState(false);
   const { isLoggedIn, isAdmin, signOut } = useAuth();
-  const [agents, setAgents] = useState([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const fetchAgents = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('agents')
         .select('*');
@@ -52,10 +66,38 @@ const AdminAddAgentPage = () => {
     if (isLoggedIn && isAdmin) {
       fetchAgents();
     }
-  }, [isLoggedIn, isAdmin, toast]);
+  }, [isLoggedIn, isAdmin]);
   
   const handleLoginClick = () => {
     setShowAuthForm(true);
+  };
+  
+  const handleDeleteAgent = async (agentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('agents')
+        .delete()
+        .eq('id', agentId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Agent Deleted",
+        description: "The agent has been successfully deleted.",
+      });
+      
+      // Refresh the agents list
+      fetchAgents();
+    } catch (error: any) {
+      console.error('Error deleting agent:', error);
+      toast({
+        title: "Error Deleting Agent",
+        description: error.message || "An error occurred while deleting the agent.",
+        variant: "destructive",
+      });
+    }
   };
   
   // If not logged in or not an admin, redirect to home
@@ -82,7 +124,7 @@ const AdminAddAgentPage = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <AddAgentForm onAgentAdded={() => fetchAgents()} />
+            <AddAgentForm onAgentAdded={fetchAgents} />
           </div>
           
           <div className="bg-white p-6 rounded-lg border shadow-sm">
@@ -135,11 +177,11 @@ const AdminAddAgentPage = () => {
                     <TableRow key={agent.id}>
                       <TableCell className="font-medium">{agent.name}</TableCell>
                       <TableCell className="max-w-xs truncate">{agent.description}</TableCell>
-                      <TableCell>${agent.price}</TableCell>
+                      <TableCell>${typeof agent.price === 'number' ? agent.price.toFixed(2) : agent.price}</TableCell>
                       <TableCell>{agent.importance}</TableCell>
                       <TableCell>
-                        <Button variant="outline" size="sm" className="mr-2">Edit</Button>
-                        <Button variant="destructive" size="sm">Delete</Button>
+                        <Button variant="outline" size="sm" className="mr-2" onClick={() => window.location.href = `/admin/edit-agent/${agent.id}`}>Edit</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteAgent(agent.id)}>Delete</Button>
                       </TableCell>
                     </TableRow>
                   ))}

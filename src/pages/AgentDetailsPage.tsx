@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 // Mock data for a single agent
 const mockAgents = {
@@ -80,13 +82,63 @@ const AgentDetailsPage = () => {
   const { agentId } = useParams<{ agentId: string }>();
   const navigate = useNavigate();
   const [showAuthForm, setShowAuthForm] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { isLoggedIn, isAdmin, signOut, user } = useAuth();
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [agent, setAgent] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Get agent data by ID
-  const agent = agentId && mockAgents[agentId];
+  // Fetch the agent data from Supabase or use mock data
+  useEffect(() => {
+    const fetchAgent = async () => {
+      setIsLoading(true);
+      
+      try {
+        // First try to fetch from Supabase
+        if (agentId) {
+          const { data, error } = await supabase
+            .from('agents')
+            .select('*')
+            .eq('id', agentId)
+            .single();
+          
+          if (error) {
+            console.error('Error fetching agent:', error);
+            // Fallback to mock data if not found in database
+            setAgent(mockAgents[agentId]);
+          } else {
+            setAgent(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        setAgent(agentId ? mockAgents[agentId] : null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchAgent();
+  }, [agentId]);
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar 
+          isLoggedIn={isLoggedIn} 
+          isAdmin={isAdmin} 
+          onLoginClick={() => setShowAuthForm(true)} 
+          onLogout={signOut} 
+        />
+        
+        <main className="flex-grow container py-12 text-center">
+          <h1 className="text-3xl font-bold text-gray-800 mb-4">Loading...</h1>
+        </main>
+        
+        <Footer />
+      </div>
+    );
+  }
   
   if (!agent) {
     return (
@@ -95,10 +147,7 @@ const AgentDetailsPage = () => {
           isLoggedIn={isLoggedIn} 
           isAdmin={isAdmin} 
           onLoginClick={() => setShowAuthForm(true)} 
-          onLogout={() => {
-            setIsLoggedIn(false);
-            setIsAdmin(false);
-          }} 
+          onLogout={signOut} 
         />
         
         <main className="flex-grow container py-12 text-center">
@@ -120,39 +169,64 @@ const AgentDetailsPage = () => {
     setShowAuthForm(true);
   };
   
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
-  };
-  
   const handlePurchase = () => {
+    console.log("Purchase button clicked, isLoggedIn:", isLoggedIn);
+    // Only show login if user is truly not logged in
     if (!isLoggedIn) {
       setShowAuthForm(true);
       return;
     }
+    
+    // If logged in, proceed to payment dialog
     setShowPaymentDialog(true);
   };
   
-  const handlePayment = () => {
+  const handlePayment = async () => {
     setIsProcessing(true);
     
-    // Simulate payment processing
-    setTimeout(() => {
+    try {
+      // Create a purchase record in the database
+      const { data, error } = await supabase
+        .from('purchases')
+        .insert({
+          user_id: user?.id,
+          agent_id: agent.id,
+          payment_status: 'pending'
+        })
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Simulate payment processing
+      setTimeout(() => {
+        setIsProcessing(false);
+        setShowPaymentDialog(false);
+        
+        toast({
+          title: "Purchase Successful",
+          description: "You have successfully purchased this agent.",
+        });
+        
+        // Update purchase status to completed
+        if (data && data[0]) {
+          supabase
+            .from('purchases')
+            .update({ payment_status: 'completed' })
+            .eq('id', data[0].id);
+        }
+      }, 2000);
+    } catch (error: any) {
+      console.error('Purchase error:', error);
       setIsProcessing(false);
-      setShowPaymentDialog(false);
       
       toast({
-        title: "Integration Required",
-        description: "Please integrate with Stripe to enable payment processing.",
+        title: "Purchase Failed",
+        description: error.message || "An error occurred during purchase.",
+        variant: "destructive",
       });
-      
-      // Normally would redirect to download page on successful payment
-      // navigate('/download/agentId');
-    }, 2000);
+    }
   };
   
   return (
@@ -161,7 +235,7 @@ const AgentDetailsPage = () => {
         isLoggedIn={isLoggedIn} 
         isAdmin={isAdmin} 
         onLoginClick={handleLoginClick} 
-        onLogout={handleLogout} 
+        onLogout={signOut} 
       />
       
       <main className="flex-grow container py-12">
@@ -207,31 +281,33 @@ const AgentDetailsPage = () => {
             <div>
               <h2 className="text-2xl font-bold text-brand-navy mb-4">How to Use</h2>
               <div className="bg-gray-50 p-6 rounded-lg">
-                <p className="text-gray-700">{agent.howToUse}</p>
+                <p className="text-gray-700">{agent.howToUse || "After purchasing, you'll receive detailed instructions on how to implement and use this agent in your business workflow."}</p>
               </div>
             </div>
             
-            <div>
-              <h2 className="text-2xl font-bold text-brand-navy mb-4">Frequently Asked Questions</h2>
-              <Accordion type="single" collapsible className="bg-gray-50 rounded-lg">
-                {agent.faqs.map((faq, index) => (
-                  <AccordionItem key={index} value={`item-${index}`}>
-                    <AccordionTrigger className="px-6 hover:no-underline hover:text-brand-navy">
-                      {faq.question}
-                    </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-4">
-                      {faq.answer}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </div>
+            {agent.faqs && (
+              <div>
+                <h2 className="text-2xl font-bold text-brand-navy mb-4">Frequently Asked Questions</h2>
+                <Accordion type="single" collapsible className="bg-gray-50 rounded-lg">
+                  {agent.faqs.map((faq, index) => (
+                    <AccordionItem key={index} value={`item-${index}`}>
+                      <AccordionTrigger className="px-6 hover:no-underline hover:text-brand-navy">
+                        {faq.question}
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6 pb-4">
+                        {faq.answer}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            )}
           </div>
           
           <div>
             <div className="bg-white rounded-lg border p-6 sticky top-20">
               <div className="text-center mb-4">
-                <h3 className="text-3xl font-bold text-brand-navy">${agent.price.toFixed(2)}</h3>
+                <h3 className="text-3xl font-bold text-brand-navy">${typeof agent.price === 'number' ? agent.price.toFixed(2) : agent.price}</h3>
                 <p className="text-gray-500">One-time payment</p>
               </div>
               
@@ -262,7 +338,7 @@ const AgentDetailsPage = () => {
               </Button>
               
               <div className="mt-4 text-center text-sm text-gray-500">
-                <p>Secure payment processing by Stripe</p>
+                <p>Secure payment processing</p>
               </div>
             </div>
           </div>
@@ -280,7 +356,7 @@ const AgentDetailsPage = () => {
           <DialogHeader>
             <DialogTitle>Complete Your Purchase</DialogTitle>
             <DialogDescription>
-              Enter your payment details to purchase {agent.name} for ${agent.price.toFixed(2)}.
+              Enter your payment details to purchase {agent.name} for ${typeof agent.price === 'number' ? agent.price.toFixed(2) : agent.price}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -325,7 +401,7 @@ const AgentDetailsPage = () => {
                   Processing...
                 </span>
               ) : (
-                `Pay $${agent.price.toFixed(2)}`
+                `Pay $${typeof agent.price === 'number' ? agent.price.toFixed(2) : agent.price}`
               )}
             </Button>
           </DialogFooter>
