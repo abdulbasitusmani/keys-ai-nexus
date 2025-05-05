@@ -67,6 +67,20 @@ export function AuthForm({ onClose }: AuthFormProps) {
     }, 1000);
   };
 
+  const switchToSignup = () => {
+    const signupTrigger = document.querySelector('[data-value="signup"]') as HTMLElement;
+    if (signupTrigger) {
+      signupTrigger.click();
+    }
+  };
+
+  const switchToLogin = () => {
+    const loginTrigger = document.querySelector('[data-value="login"]') as HTMLElement;
+    if (loginTrigger) {
+      loginTrigger.click();
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <Card className="w-full max-w-md animate-scale-in">
@@ -132,7 +146,7 @@ export function AuthForm({ onClose }: AuthFormProps) {
                 </Button>
                 <p className="text-center text-sm text-gray-500">
                   Don't have an account?{" "}
-                  <button type="button" onClick={() => document.querySelector('[data-value="signup"]')?.click()} className="text-brand-navy underline-animation">
+                  <button type="button" onClick={switchToSignup} className="text-brand-navy underline-animation">
                     Sign up
                   </button>
                 </p>
@@ -212,7 +226,7 @@ export function AuthForm({ onClose }: AuthFormProps) {
                 </Button>
                 <p className="text-center text-sm text-gray-500">
                   Already have an account?{" "}
-                  <button type="button" onClick={() => document.querySelector('[data-value="login"]')?.click()} className="text-brand-navy underline-animation">
+                  <button type="button" onClick={switchToLogin} className="text-brand-navy underline-animation">
                     Log in
                   </button>
                 </p>
