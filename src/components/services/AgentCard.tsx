@@ -9,6 +9,10 @@ export interface Agent {
   description: string;
   price: number;
   importance: "High" | "Medium" | "Low";
+  how_to_use?: string;
+  json_file_url?: string;
+  created_at?: string;
+  created_by?: string;
 }
 
 interface AgentCardProps {

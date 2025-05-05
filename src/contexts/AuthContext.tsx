@@ -10,6 +10,7 @@ interface AuthContextType {
   profile: any | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isLoggedIn: boolean; // Added isLoggedIn property
   signOut: () => Promise<void>;
 }
 
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // Added isLoggedIn state
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -29,11 +31,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        setIsLoggedIn(!!session?.user); // Update isLoggedIn based on user presence
         
         // If user logged out, clear profile
         if (event === 'SIGNED_OUT') {
           setProfile(null);
           setIsAdmin(false);
+          setIsLoggedIn(false); // Ensure isLoggedIn is false on signout
         }
       }
     );
@@ -42,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setIsLoggedIn(!!session?.user); // Set isLoggedIn based on user presence
       setIsLoading(false);
     });
 
@@ -103,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     isLoading,
     isAdmin,
+    isLoggedIn, // Include isLoggedIn in the context value
     signOut,
   };
 

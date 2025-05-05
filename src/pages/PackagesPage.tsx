@@ -28,14 +28,33 @@ const PackagesPage = () => {
         
         if (data && data.length > 0) {
           // Convert the packages data from Supabase to the PricingTier format
-          const formattedPackages: PricingTier[] = data.map(pkg => ({
-            id: pkg.id,
-            name: pkg.name,
-            description: pkg.description,
-            price: pkg.price,
-            features: Array.isArray(pkg.features) ? pkg.features : JSON.parse(pkg.features),
-            isPopular: pkg.is_popular
-          }));
+          const formattedPackages: PricingTier[] = data.map(pkg => {
+            // Parse features if they're stored as a JSON string
+            let features: string[];
+            try {
+              if (typeof pkg.features === 'string') {
+                features = JSON.parse(pkg.features);
+              } else if (Array.isArray(pkg.features)) {
+                features = pkg.features;
+              } else {
+                // Handle case where features might be a JSONB object
+                features = Object.values(pkg.features).map(val => String(val));
+              }
+            } catch (e) {
+              // Fallback if parsing fails
+              console.error('Error parsing features:', e);
+              features = ['Error loading features'];
+            }
+
+            return {
+              id: pkg.id,
+              name: pkg.name,
+              description: pkg.description,
+              price: pkg.price,
+              features: features,
+              isPopular: pkg.is_popular
+            };
+          });
           
           setPackages(formattedPackages);
         } else {

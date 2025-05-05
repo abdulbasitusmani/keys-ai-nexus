@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AgentCard, Agent } from "@/components/services/AgentCard";
@@ -8,7 +8,6 @@ import { AuthForm } from "@/components/auth/AuthForm";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
 
 const ServicesPage = () => {
   const { toast } = useToast();
@@ -30,8 +29,21 @@ const ServicesPage = () => {
         }
         
         if (data && data.length > 0) {
-          setAgents(data);
-          setFilteredAgents(data);
+          // Convert the agents data from Supabase to match the Agent interface
+          const formattedAgents: Agent[] = data.map(agent => ({
+            id: agent.id,
+            name: agent.name,
+            description: agent.description,
+            price: agent.price,
+            importance: agent.importance as "High" | "Medium" | "Low",
+            how_to_use: agent.how_to_use,
+            json_file_url: agent.json_file_url,
+            created_at: agent.created_at,
+            created_by: agent.created_by
+          }));
+          
+          setAgents(formattedAgents);
+          setFilteredAgents(formattedAgents);
         } else {
           // If no agents in the database, use mock data as fallback
           setAgents(mockAgents);
