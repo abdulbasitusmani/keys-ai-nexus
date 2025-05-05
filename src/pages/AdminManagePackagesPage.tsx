@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -36,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 
 interface Package {
   id: string;
@@ -44,6 +44,7 @@ interface Package {
   price: number | string;
   features: string[];
   is_popular: boolean;
+  created_at?: string;
 }
 
 const AdminManagePackagesPage = () => {
@@ -78,7 +79,38 @@ const AdminManagePackagesPage = () => {
           throw error;
         }
         
-        setPackages(data || []);
+        if (data) {
+          // Parse JSON features and convert all entries to strings
+          const formattedPackages: Package[] = data.map(pkg => {
+            let features: string[] = [];
+            
+            try {
+              // Handle different possible types of features data
+              if (typeof pkg.features === 'string') {
+                features = JSON.parse(pkg.features);
+              } else if (Array.isArray(pkg.features)) {
+                features = pkg.features.map(item => String(item));
+              } else if (pkg.features && typeof pkg.features === 'object') {
+                features = Object.values(pkg.features).map(val => String(val));
+              }
+            } catch (err) {
+              console.error('Error parsing features for package:', pkg.id, err);
+              features = [];
+            }
+            
+            return {
+              id: pkg.id,
+              name: pkg.name,
+              description: pkg.description,
+              price: pkg.price,
+              features: features,
+              is_popular: pkg.is_popular || false,
+              created_at: pkg.created_at
+            };
+          });
+          
+          setPackages(formattedPackages);
+        }
       } catch (error: any) {
         console.error('Error fetching packages:', error);
         toast({
@@ -96,7 +128,7 @@ const AdminManagePackagesPage = () => {
   
   const openFeatureDialog = (pkg: Package) => {
     setSelectedPackage(pkg);
-    setPackageFeatures(Array.isArray(pkg.features) ? pkg.features : []);
+    setPackageFeatures(pkg.features || []);
     setShowFeatureDialog(true);
   };
   
@@ -220,14 +252,19 @@ const AdminManagePackagesPage = () => {
         return;
       }
       
+      // Convert price to number if it's a numeric string
+      const priceValue = newPackage.price === 'Custom' ? 
+        'Custom' : 
+        typeof newPackage.price === 'string' && !isNaN(parseFloat(newPackage.price as string)) ? 
+          parseFloat(newPackage.price as string) : 
+          newPackage.price;
+      
       const { data, error } = await supabase
         .from('packages')
         .insert({
           name: newPackage.name,
           description: newPackage.description,
-          price: typeof newPackage.price === 'string' ? 
-            newPackage.price === 'Custom' ? 'Custom' : parseFloat(newPackage.price) : 
-            newPackage.price,
+          price: priceValue,
           features: newPackage.features,
           is_popular: newPackage.is_popular
         })
@@ -237,8 +274,23 @@ const AdminManagePackagesPage = () => {
         throw error;
       }
       
-      // Update local state
-      setPackages([...packages, data[0]]);
+      if (data && data.length > 0) {
+        // Format the new package to match our Package interface
+        const newPkg: Package = {
+          id: data[0].id,
+          name: data[0].name,
+          description: data[0].description,
+          price: data[0].price,
+          features: Array.isArray(data[0].features) ? 
+            data[0].features.map(f => String(f)) : 
+            [],
+          is_popular: data[0].is_popular || false,
+          created_at: data[0].created_at
+        };
+      
+        // Update local state
+        setPackages([...packages, newPkg]);
+      }
       
       // Reset form
       setNewPackage({

@@ -25,30 +25,30 @@ const AdminAddAgentPage = () => {
   const [agents, setAgents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  useEffect(() => {
-    const fetchAgents = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('agents')
-          .select('*');
-        
-        if (error) {
-          throw error;
-        }
-        
-        setAgents(data || []);
-      } catch (error) {
-        console.error('Error fetching agents:', error);
-        toast({
-          title: "Error fetching agents",
-          description: "Could not load the agent data.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
+  const fetchAgents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('agents')
+        .select('*');
+      
+      if (error) {
+        throw error;
       }
-    };
-    
+      
+      setAgents(data || []);
+    } catch (error) {
+      console.error('Error fetching agents:', error);
+      toast({
+        title: "Error fetching agents",
+        description: "Could not load the agent data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
     if (isLoggedIn && isAdmin) {
       fetchAgents();
     }

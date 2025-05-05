@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -25,8 +24,7 @@ import {
   DialogDescription, 
   DialogFooter, 
   DialogHeader, 
-  DialogTitle,
-  DialogTrigger
+  DialogTitle
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { 
@@ -39,6 +37,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from 'date-fns';
+import { Json } from "@/integrations/supabase/types";
 
 interface ContactRequest {
   id: string;
@@ -78,7 +77,18 @@ const AdminContactRequestsPage = () => {
           throw error;
         }
         
-        setRequests(data || []);
+        if (data) {
+          // Convert the data to the expected ContactRequest format
+          const formattedRequests: ContactRequest[] = data.map(item => ({
+            ...item,
+            // Ensure status is one of the allowed values
+            status: (['new', 'in-progress', 'completed'].includes(item.status) 
+              ? item.status as 'new' | 'in-progress' | 'completed'
+              : 'new') // Default to 'new' if status is not valid
+          }));
+          
+          setRequests(formattedRequests);
+        }
       } catch (error: any) {
         console.error('Error fetching contact requests:', error);
         toast({
@@ -99,7 +109,7 @@ const AdminContactRequestsPage = () => {
     setShowDetailsDialog(true);
   };
   
-  const updateStatus = async (id: string, status: string) => {
+  const updateStatus = async (id: string, status: 'new' | 'in-progress' | 'completed') => {
     try {
       const { error } = await supabase
         .from('contact_requests')
@@ -112,12 +122,12 @@ const AdminContactRequestsPage = () => {
       
       // Update local state
       setRequests(requests.map(req => 
-        req.id === id ? { ...req, status: status as 'new' | 'in-progress' | 'completed' } : req
+        req.id === id ? { ...req, status } : req
       ));
       
       // Also update selected request if dialog is open
       if (selectedRequest && selectedRequest.id === id) {
-        setSelectedRequest({ ...selectedRequest, status: status as 'new' | 'in-progress' | 'completed' });
+        setSelectedRequest({ ...selectedRequest, status });
       }
       
       toast({
@@ -277,7 +287,7 @@ const AdminContactRequestsPage = () => {
                       </Button>
                       <Select 
                         defaultValue={request.status} 
-                        onValueChange={(value) => updateStatus(request.id, value)}
+                        onValueChange={(value) => updateStatus(request.id, value as 'new' | 'in-progress' | 'completed')}
                       >
                         <SelectTrigger className="w-[130px] h-8">
                           <SelectValue placeholder="Change Status" />
@@ -345,7 +355,7 @@ const AdminContactRequestsPage = () => {
                     <div className="ml-4">
                       <Select 
                         defaultValue={selectedRequest.status} 
-                        onValueChange={(value) => updateStatus(selectedRequest.id, value)}
+                        onValueChange={(value) => updateStatus(selectedRequest.id, value as 'new' | 'in-progress' | 'completed')}
                       >
                         <SelectTrigger className="w-[130px]">
                           <SelectValue placeholder="Change" />
