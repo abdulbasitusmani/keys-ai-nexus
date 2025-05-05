@@ -9,7 +9,158 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      agents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          how_to_use: string | null
+          id: string
+          importance: string
+          json_file_url: string | null
+          name: string
+          price: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          how_to_use?: string | null
+          id?: string
+          importance: string
+          json_file_url?: string | null
+          name: string
+          price: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          how_to_use?: string | null
+          id?: string
+          importance?: string
+          json_file_url?: string | null
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
+      contact_requests: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      packages: {
+        Row: {
+          created_at: string
+          description: string
+          features: Json
+          id: string
+          is_popular: boolean | null
+          name: string
+          price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          features: Json
+          id?: string
+          is_popular?: boolean | null
+          name: string
+          price: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          features?: Json
+          id?: string
+          is_popular?: boolean | null
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: string
+        }
+        Relationships: []
+      }
+      purchases: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          payment_intent_id: string | null
+          payment_status: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          payment_intent_id?: string | null
+          payment_status: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          payment_intent_id?: string | null
+          payment_status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

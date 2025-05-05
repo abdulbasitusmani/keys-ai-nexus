@@ -1,76 +1,66 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { PricingCard, PricingTier } from "@/components/packages/PricingCard";
 import { useToast } from "@/components/ui/use-toast";
-
-// Mock data for pricing tiers
-const pricingTiers: PricingTier[] = [
-  {
-    id: "basic",
-    name: "Basic",
-    description: "For individuals and small businesses just getting started",
-    price: 29,
-    features: [
-      "Access to 1 AI agent",
-      "Basic email support",
-      "Standard integration options",
-      "Monthly usage reports",
-      "Up to 1,000 operations per month",
-    ],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    description: "For growing businesses with advanced needs",
-    price: 99,
-    features: [
-      "Access to 5 AI agents",
-      "Priority email and chat support",
-      "Advanced integration options",
-      "Weekly performance reports",
-      "Up to 10,000 operations per month",
-      "Custom agent training",
-    ],
-    isPopular: true,
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    description: "For large organizations requiring comprehensive solutions",
-    price: "Custom",
-    features: [
-      "Unlimited AI agents",
-      "24/7 dedicated support",
-      "Enterprise-grade integrations",
-      "Real-time reporting dashboard",
-      "Unlimited operations",
-      "Custom agent development",
-      "Dedicated account manager",
-      "Service level agreement (SLA)",
-    ],
-  },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const PackagesPage = () => {
   const { toast } = useToast();
+  const { isLoggedIn, isAdmin, signOut } = useAuth();
   const [showAuthForm, setShowAuthForm] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [packages, setPackages] = useState<PricingTier[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('packages')
+          .select('*');
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data && data.length > 0) {
+          // Convert the packages data from Supabase to the PricingTier format
+          const formattedPackages: PricingTier[] = data.map(pkg => ({
+            id: pkg.id,
+            name: pkg.name,
+            description: pkg.description,
+            price: pkg.price,
+            features: Array.isArray(pkg.features) ? pkg.features : JSON.parse(pkg.features),
+            isPopular: pkg.is_popular
+          }));
+          
+          setPackages(formattedPackages);
+        } else {
+          // If no packages in the database, use mock data as fallback
+          setPackages(pricingTiers);
+        }
+      } catch (error) {
+        console.error('Error fetching packages:', error);
+        toast({
+          title: "Error loading packages",
+          description: "There was a problem loading the packages. Using sample data instead.",
+          variant: "destructive",
+        });
+        // Use mock data as fallback
+        setPackages(pricingTiers);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchPackages();
+  }, [toast]);
   
   const handleLoginClick = () => {
     setShowAuthForm(true);
-  };
-  
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
   };
   
   return (
@@ -79,7 +69,7 @@ const PackagesPage = () => {
         isLoggedIn={isLoggedIn} 
         isAdmin={isAdmin} 
         onLoginClick={handleLoginClick} 
-        onLogout={handleLogout} 
+        onLogout={signOut} 
       />
       
       <main className="flex-grow">
@@ -94,11 +84,17 @@ const PackagesPage = () => {
         
         <section className="py-16 bg-gray-50">
           <div className="container">
-            <div className="grid md:grid-cols-3 gap-8">
-              {pricingTiers.map((tier) => (
-                <PricingCard key={tier.id} tier={tier} />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="py-16 text-center">
+                <h3 className="text-xl font-medium text-gray-700 mb-2">Loading packages...</h3>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-3 gap-8">
+                {packages.map((tier) => (
+                  <PricingCard key={tier.id} tier={tier} />
+                ))}
+              </div>
+            )}
             
             <div className="mt-16 bg-white p-8 rounded-lg border text-center">
               <h2 className="text-2xl font-bold text-brand-navy mb-4">Not sure which plan is right for you?</h2>
@@ -155,5 +151,53 @@ const PackagesPage = () => {
     </div>
   );
 };
+
+// Mock data for pricing tiers as fallback
+const pricingTiers: PricingTier[] = [
+  {
+    id: "basic",
+    name: "Basic",
+    description: "For individuals and small businesses just getting started",
+    price: 29,
+    features: [
+      "Access to 1 AI agent",
+      "Basic email support",
+      "Standard integration options",
+      "Monthly usage reports",
+      "Up to 1,000 operations per month",
+    ],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    description: "For growing businesses with advanced needs",
+    price: 99,
+    features: [
+      "Access to 5 AI agents",
+      "Priority email and chat support",
+      "Advanced integration options",
+      "Weekly performance reports",
+      "Up to 10,000 operations per month",
+      "Custom agent training",
+    ],
+    isPopular: true,
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    description: "For large organizations requiring comprehensive solutions",
+    price: "Custom",
+    features: [
+      "Unlimited AI agents",
+      "24/7 dedicated support",
+      "Enterprise-grade integrations",
+      "Real-time reporting dashboard",
+      "Unlimited operations",
+      "Custom agent development",
+      "Dedicated account manager",
+      "Service level agreement (SLA)",
+    ],
+  },
+];
 
 export default PackagesPage;

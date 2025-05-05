@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthFormProps {
   onClose: () => void;
@@ -30,15 +31,32 @@ export function AuthForm({ onClose }: AuthFormProps) {
     e.preventDefault();
     setIsLoading(true);
 
-    // We need Supabase integration for actual authentication
-    // For now, we'll simulate a successful login
-    setTimeout(() => {
-      toast({
-        title: "Integration Required",
-        description: "Please integrate with Supabase to enable authentication.",
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
       });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Login successful",
+        description: "You have been successfully logged in.",
+      });
+      
+      // Close the auth form
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error.message || "An error occurred during login.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -56,15 +74,38 @@ export function AuthForm({ onClose }: AuthFormProps) {
       return;
     }
 
-    // We need Supabase integration for actual authentication
-    // For now, we'll simulate a successful signup
-    setTimeout(() => {
-      toast({
-        title: "Integration Required",
-        description: "Please integrate with Supabase to enable user registration.",
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: signupEmail,
+        password: signupPassword,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          },
+        },
       });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Signup successful",
+        description: "Please check your email to confirm your account.",
+      });
+      
+      // Switch to login tab after successful signup
+      switchToLogin();
+    } catch (error: any) {
+      toast({
+        title: "Signup failed",
+        description: error.message || "An error occurred during signup.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const switchToSignup = () => {
@@ -117,7 +158,39 @@ export function AuthForm({ onClose }: AuthFormProps) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="login-password">Password</Label>
-                    <button type="button" className="text-sm text-brand-navy underline-animation">
+                    <button 
+                      type="button" 
+                      className="text-sm text-brand-navy underline-animation"
+                      onClick={async () => {
+                        if (!loginEmail) {
+                          toast({
+                            title: "Email required",
+                            description: "Please enter your email address to reset your password.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        
+                        try {
+                          const { error } = await supabase.auth.resetPasswordForEmail(loginEmail);
+                          
+                          if (error) {
+                            throw error;
+                          }
+                          
+                          toast({
+                            title: "Password reset email sent",
+                            description: "Check your email for a link to reset your password.",
+                          });
+                        } catch (error: any) {
+                          toast({
+                            title: "Password reset failed",
+                            description: error.message || "An error occurred during password reset.",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    >
                       Forgot password?
                     </button>
                   </div>
