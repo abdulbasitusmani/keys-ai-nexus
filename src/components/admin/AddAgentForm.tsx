@@ -7,25 +7,39 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-export function AddAgentForm() {
+interface AddAgentFormProps {
+  onAgentAdded?: () => void;
+}
+
+export function AddAgentForm({ onAgentAdded }: AddAgentFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    howToUse: '',
+    importance: 'Medium'
+  });
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id.replace('agent-', '')]: value
+    }));
+  };
 
-    // We need Supabase integration for actual form submission
-    // For now, we'll simulate a successful submission
-    setTimeout(() => {
-      toast({
-        title: "Integration Required",
-        description: "Please integrate with Supabase to enable agent creation.",
-      });
-      setIsLoading(false);
-    }, 1000);
+  const handleImportanceChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      importance: value
+    }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,8 +58,99 @@ export function AddAgentForm() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      let jsonFileUrl = null;
+
+      // Upload JSON file to storage if provided
+      if (file) {
+        const fileName = `${Date.now()}_${file.name}`;
+        
+        // Create storage bucket if it doesn't exist
+        const { data: bucketData, error: bucketError } = await supabase
+          .storage
+          .getBucket('agent-configs');
+          
+        if (bucketError && bucketError.message.includes('The resource was not found')) {
+          // Create the bucket if it doesn't exist
+          await supabase.storage.createBucket('agent-configs', {
+            public: false,
+          });
+        }
+        
+        // Upload file
+        const { data: uploadData, error: uploadError } = await supabase
+          .storage
+          .from('agent-configs')
+          .upload(fileName, file);
+        
+        if (uploadError) {
+          throw uploadError;
+        }
+        
+        // Get the public URL
+        const { data: urlData } = supabase
+          .storage
+          .from('agent-configs')
+          .getPublicUrl(fileName);
+        
+        jsonFileUrl = urlData.publicUrl;
+      }
+
+      // Insert into database
+      const { data, error } = await supabase
+        .from('agents')
+        .insert({
+          name: formData.name,
+          description: formData.description,
+          price: parseFloat(formData.price),
+          how_to_use: formData.howToUse,
+          importance: formData.importance,
+          json_file_url: jsonFileUrl,
+          created_by: user?.id
+        })
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Agent Added",
+        description: "The agent has been successfully added to the platform.",
+      });
+      
+      // Reset form
+      setFormData({
+        name: '',
+        description: '',
+        price: '',
+        howToUse: '',
+        importance: 'Medium'
+      });
+      setFile(null);
+      
+      // Callback for parent component to refresh
+      if (onAgentAdded) {
+        onAgentAdded();
+      }
+    } catch (error: any) {
+      console.error('Error adding agent:', error);
+      toast({
+        title: "Error Adding Agent",
+        description: error.message || "An error occurred while adding the agent.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <Card className="w-full max-w-3xl mx-auto">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="text-2xl text-brand-navy">Add New AI Agent</CardTitle>
         <CardDescription>
@@ -56,7 +161,12 @@ export function AddAgentForm() {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="agent-name">Agent Name *</Label>
-            <Input id="agent-name" required />
+            <Input 
+              id="agent-name" 
+              value={formData.name} 
+              onChange={handleChange} 
+              required 
+            />
           </div>
           
           <div className="space-y-2">
@@ -65,6 +175,8 @@ export function AddAgentForm() {
               id="agent-description"
               className="min-h-[120px]"
               placeholder="Describe what this agent does and how it helps businesses..."
+              value={formData.description}
+              onChange={handleChange}
               required
             />
           </div>
@@ -77,22 +189,30 @@ export function AddAgentForm() {
               min="0.01"
               step="0.01"
               placeholder="29.99"
+              value={formData.price}
+              onChange={handleChange}
               required
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="agent-how-to-use">How to Use</Label>
+            <Label htmlFor="agent-howToUse">How to Use</Label>
             <Textarea
-              id="agent-how-to-use"
+              id="agent-howToUse"
               className="min-h-[120px]"
               placeholder="Provide instructions on how to use this agent..."
+              value={formData.howToUse}
+              onChange={handleChange}
             />
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="agent-importance">Importance *</Label>
-            <Select required defaultValue="Medium">
+            <Select 
+              required 
+              value={formData.importance} 
+              onValueChange={handleImportanceChange}
+            >
               <SelectTrigger id="agent-importance">
                 <SelectValue placeholder="Select importance level" />
               </SelectTrigger>
@@ -133,7 +253,16 @@ export function AddAgentForm() {
           </div>
         </CardContent>
         <CardFooter className="flex justify-end space-x-4">
-          <Button variant="outline" type="button">Cancel</Button>
+          <Button variant="outline" type="button" onClick={() => {
+            setFormData({
+              name: '',
+              description: '',
+              price: '',
+              howToUse: '',
+              importance: 'Medium'
+            });
+            setFile(null);
+          }}>Cancel</Button>
           <Button 
             type="submit" 
             className="bg-brand-navy hover:bg-opacity-90"

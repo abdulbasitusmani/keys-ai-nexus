@@ -10,7 +10,7 @@ interface AuthContextType {
   profile: any | null;
   isLoading: boolean;
   isAdmin: boolean;
-  isLoggedIn: boolean; // Added isLoggedIn property
+  isLoggedIn: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -23,7 +23,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Added isLoggedIn state
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  // Effect for special admin user (for demo purposes)
+  useEffect(() => {
+    const checkForAdminUser = async () => {
+      if (user?.email === 'abdulbasitusmani10@gmail.com') {
+        // Set this special user as admin
+        try {
+          // First check if there's already a profile
+          const { data: existingProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+            
+          if (profileError && !profileError.message.includes('No rows found')) {
+            console.error('Error checking profile:', profileError);
+            return;
+          }
+          
+          if (!existingProfile) {
+            // Create profile if it doesn't exist
+            await supabase
+              .from('profiles')
+              .insert({
+                id: user.id,
+                first_name: 'Admin',
+                last_name: 'User',
+                role: 'admin'
+              });
+          } else if (existingProfile.role !== 'admin') {
+            // Update to admin if not already
+            await supabase
+              .from('profiles')
+              .update({ role: 'admin' })
+              .eq('id', user.id);
+          }
+          
+          setIsAdmin(true);
+        } catch (error) {
+          console.error('Error setting admin:', error);
+        }
+      }
+    };
+    
+    if (user) {
+      checkForAdminUser();
+    }
+  }, [user]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -31,13 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        setIsLoggedIn(!!session?.user); // Update isLoggedIn based on user presence
+        setIsLoggedIn(!!session?.user);
         
         // If user logged out, clear profile
         if (event === 'SIGNED_OUT') {
           setProfile(null);
           setIsAdmin(false);
-          setIsLoggedIn(false); // Ensure isLoggedIn is false on signout
+          setIsLoggedIn(false);
         }
       }
     );
@@ -46,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setIsLoggedIn(!!session?.user); // Set isLoggedIn based on user presence
+      setIsLoggedIn(!!session?.user);
       setIsLoading(false);
     });
 
@@ -108,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     isLoading,
     isAdmin,
-    isLoggedIn, // Include isLoggedIn in the context value
+    isLoggedIn,
     signOut,
   };
 
