@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,7 +83,8 @@ export function AdminUploadPanel() {
         .insert({
           name: formData.name,
           description: formData.description,
-          file_path: uploadResult.filePath
+          json_file_url: uploadResult.filePath,
+          importance: "Medium" // Adding a default value for the required importance field
         });
 
       if (insertError) {

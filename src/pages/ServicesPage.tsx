@@ -24,13 +24,15 @@ import {
   PaginationPrevious 
 } from "@/components/ui/pagination";
 
-// Agent interface
+// Updated Agent interface to match database schema
 interface Agent {
   id: string;
   name: string;
   description: string | null;
-  file_path: string;
+  json_file_url: string;
   created_at: string;
+  importance: string;
+  how_to_use?: string | null;
 }
 
 const ServicesPage = () => {
@@ -159,7 +161,7 @@ const ServicesPage = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleDownload(agent.file_path)}
+                            onClick={() => handleDownload(agent.json_file_url)}
                           >
                             Download
                           </Button>
