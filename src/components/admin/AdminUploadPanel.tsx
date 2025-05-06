@@ -14,6 +14,7 @@ import { Navigate } from "react-router-dom";
 interface FormData {
   name: string;
   description: string;
+  price: number;
 }
 
 export function AdminUploadPanel() {
@@ -23,7 +24,8 @@ export function AdminUploadPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: '',
-    description: ''
+    description: '',
+    price: 0
   });
 
   // Load saved form data from localStorage on component mount
@@ -42,7 +44,10 @@ export function AdminUploadPanel() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData(prev => {
-      const newData = { ...prev, [id.replace('agent-', '')]: value };
+      const newData = { 
+        ...prev, 
+        [id.replace('agent-', '')]: id === 'agent-price' ? parseFloat(value) || 0 : value 
+      };
       // Save to localStorage as we type
       localStorage.setItem('adminUploadFormData', JSON.stringify(newData));
       return newData;
@@ -84,7 +89,8 @@ export function AdminUploadPanel() {
           name: formData.name,
           description: formData.description,
           json_file_url: uploadResult.filePath,
-          importance: "Medium" // Adding a default value for the required importance field
+          importance: "Medium", // Adding a default value for the required importance field
+          price: formData.price // Add the price field
         });
 
       if (insertError) {
@@ -97,7 +103,7 @@ export function AdminUploadPanel() {
       });
       
       // Reset form
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', price: 0 });
       setFile(null);
       
       // Clear localStorage
@@ -160,6 +166,20 @@ export function AdminUploadPanel() {
           </div>
           
           <div className="space-y-2">
+            <Label htmlFor="agent-price">Price *</Label>
+            <Input
+              id="agent-price"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.price}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
             <Label htmlFor="agent-json-file">JSON File *</Label>
             <Input
               id="agent-json-file"
@@ -195,6 +215,7 @@ export function AdminUploadPanel() {
               setFormData({
                 name: '',
                 description: '',
+                price: 0
               });
               setFile(null);
               localStorage.removeItem('adminUploadFormData');
