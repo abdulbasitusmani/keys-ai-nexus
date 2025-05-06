@@ -7,25 +7,15 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const { toast } = useToast();
   const [showAuthForm, setShowAuthForm] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { isLoggedIn, isAdmin, signOut } = useAuth();
   
-  // For demo purposes, we'll simulate login/logout
   const handleLoginClick = () => {
     setShowAuthForm(true);
-  };
-  
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
   };
   
   return (
@@ -34,7 +24,7 @@ const Index = () => {
         isLoggedIn={isLoggedIn} 
         isAdmin={isAdmin} 
         onLoginClick={handleLoginClick} 
-        onLogout={handleLogout} 
+        onLogout={signOut} 
       />
       
       <main className="flex-grow">
