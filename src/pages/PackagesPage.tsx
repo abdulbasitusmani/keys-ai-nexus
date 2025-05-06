@@ -1,16 +1,18 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { PricingCard } from "@/components/packages/PricingCard";
+import { PricingCard, PricingTier } from "@/components/packages/PricingCard";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const PackagesPage = () => {
   const { toast } = useToast();
   const { isLoggedIn, isAdmin, signOut } = useAuth();
   const [showAuthForm, setShowAuthForm] = useState(false);
-  const [packages, setPackages] = useState([]);
+  const [packages, setPackages] = useState<PricingTier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
