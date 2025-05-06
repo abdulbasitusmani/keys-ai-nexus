@@ -45,10 +45,17 @@ export const uploadJsonFile = async (file: File): Promise<{ success: boolean; fi
     const bucketExists = buckets?.some(bucket => bucket.name === 'agents');
     
     if (!bucketExists) {
-      return { 
-        success: false, 
-        error: "Bucket 'agents' not found. Please create it in Supabase Dashboard (Storage > New Bucket > Name: 'agents', Private)." 
-      };
+      // Create the bucket if it doesn't exist
+      const { error: createBucketError } = await supabase.storage.createBucket('agents', {
+        public: false
+      });
+      
+      if (createBucketError) {
+        return { 
+          success: false, 
+          error: `Could not create 'agents' bucket: ${createBucketError.message}` 
+        };
+      }
     }
     
     // Validate file
@@ -163,6 +170,7 @@ export const downloadJsonFile = async (filePath: string): Promise<void> => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     
   } catch (error) {
     console.error('Error downloading file:', error);

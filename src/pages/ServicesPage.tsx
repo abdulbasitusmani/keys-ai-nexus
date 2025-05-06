@@ -1,12 +1,13 @@
-
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchAgents, downloadJsonFile } from "@/utils/supabase";
+import { fetchAgents } from "@/utils/supabase";
 import { Button } from "@/components/ui/button";
+import { DownloadAgentButton } from "@/components/services/DownloadAgentButton"; 
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Table, 
   TableBody, 
@@ -33,13 +34,20 @@ interface Agent {
   created_at: string;
   importance: string;
   how_to_use?: string | null;
+  price: number;
+}
+
+interface PurchasedAgent {
+  agent_id: string;
+  payment_status: string;
 }
 
 const ServicesPage = () => {
   const { toast } = useToast();
-  const { isLoggedIn, isAdmin, signOut } = useAuth();
+  const { isLoggedIn, isAdmin, user, signOut } = useAuth();
   const [showAuthForm, setShowAuthForm] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [purchasedAgents, setPurchasedAgents] = useState<PurchasedAgent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -58,6 +66,18 @@ const ServicesPage = () => {
           totalPages: result.totalPages,
           totalCount: result.totalCount
         });
+
+        // If user is logged in, fetch their purchased agents
+        if (isLoggedIn && user?.id) {
+          const { data: purchases, error } = await supabase
+            .from('purchases')
+            .select('agent_id, payment_status')
+            .eq('user_id', user.id);
+          
+          if (!error && purchases) {
+            setPurchasedAgents(purchases);
+          }
+        }
       } catch (error) {
         toast({
           title: "Error fetching agents",
@@ -70,14 +90,10 @@ const ServicesPage = () => {
     };
     
     loadAgents();
-  }, [pagination.currentPage, toast]);
+  }, [pagination.currentPage, toast, isLoggedIn, user?.id]);
   
   const handleLoginClick = () => {
     setShowAuthForm(true);
-  };
-
-  const handleDownload = async (filePath: string) => {
-    await downloadJsonFile(filePath);
   };
 
   const handlePageChange = (page: number) => {
@@ -85,6 +101,12 @@ const ServicesPage = () => {
       ...prev,
       currentPage: page
     }));
+  };
+
+  const isPurchased = (agentId: string) => {
+    return purchasedAgents.some(
+      purchase => purchase.agent_id === agentId && purchase.payment_status === 'completed'
+    );
   };
   
   const renderPaginationItems = () => {
@@ -147,8 +169,9 @@ const ServicesPage = () => {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Price</TableHead>
                       <TableHead>Created</TableHead>
-                      <TableHead>File</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -156,15 +179,31 @@ const ServicesPage = () => {
                       <TableRow key={agent.id}>
                         <TableCell className="font-medium">{agent.name}</TableCell>
                         <TableCell>{agent.description || "No description available"}</TableCell>
+                        <TableCell>${typeof agent.price === 'number' ? agent.price.toFixed(2) : agent.price}</TableCell>
                         <TableCell>{new Date(agent.created_at).toLocaleDateString()}</TableCell>
                         <TableCell>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDownload(agent.json_file_url)}
-                          >
-                            Download
-                          </Button>
+                          {isPurchased(agent.id) ? (
+                            <DownloadAgentButton 
+                              agentId={agent.id} 
+                              fileName={`${agent.name.toLowerCase().replace(/\s+/g, '-')}.json`}
+                            />
+                          ) : isLoggedIn ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => window.location.href = `/services/${agent.id}`}
+                            >
+                              Purchase
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={handleLoginClick}
+                            >
+                              Log in to purchase
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

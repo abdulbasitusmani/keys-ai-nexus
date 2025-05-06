@@ -31,7 +31,7 @@ export function Hero() {
         </div>
         <div className="md:w-1/2 mt-12 md:mt-0">
           <img 
-            src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800&h=600" 
+            src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?auto=format&fit=crop&q=80&w=800&h=600" 
             alt="AI Technology" 
             className="rounded-lg shadow-2xl hover-lift object-cover w-full h-full"
           />
