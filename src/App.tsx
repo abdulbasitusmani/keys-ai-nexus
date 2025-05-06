@@ -12,6 +12,7 @@ import PackagesPage from "./pages/PackagesPage";
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
 import AdminAddAgentPage from "./pages/AdminAddAgentPage";
+import AdminUploadPage from "./pages/AdminUploadPage";
 import AdminManagePackagesPage from "./pages/AdminManagePackagesPage";
 import AdminContactRequestsPage from "./pages/AdminContactRequestsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/admin/add-agent" element={<AdminAddAgentPage />} />
+            <Route path="/admin/upload" element={<AdminUploadPage />} />
             <Route path="/admin/manage-packages" element={<AdminManagePackagesPage />} />
             <Route path="/admin/contact-requests" element={<AdminContactRequestsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />

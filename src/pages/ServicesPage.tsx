@@ -2,93 +2,113 @@
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { AgentCard, Agent } from "@/components/services/AgentCard";
-import { AgentFilter } from "@/components/services/AgentFilter";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchAgents, downloadJsonFile } from "@/utils/supabase";
+import { Button } from "@/components/ui/button";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
+
+// Agent interface
+interface Agent {
+  id: string;
+  name: string;
+  description: string | null;
+  file_path: string;
+  created_at: string;
+}
 
 const ServicesPage = () => {
   const { toast } = useToast();
   const { isLoggedIn, isAdmin, signOut } = useAuth();
   const [showAuthForm, setShowAuthForm] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [filteredAgents, setFilteredAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0
+  });
+
   useEffect(() => {
-    const fetchAgents = async () => {
+    const loadAgents = async () => {
       try {
-        const { data, error } = await supabase
-          .from('agents')
-          .select('*');
-        
-        if (error) {
-          throw error;
-        }
-        
-        if (data && data.length > 0) {
-          // Convert the agents data from Supabase to match the Agent interface
-          const formattedAgents: Agent[] = data.map(agent => ({
-            id: agent.id,
-            name: agent.name,
-            description: agent.description,
-            price: agent.price,
-            importance: agent.importance as "High" | "Medium" | "Low",
-            how_to_use: agent.how_to_use,
-            json_file_url: agent.json_file_url,
-            created_at: agent.created_at,
-            created_by: agent.created_by
-          }));
-          
-          setAgents(formattedAgents);
-          setFilteredAgents(formattedAgents);
-        } else {
-          // If no agents in the database, use mock data as fallback
-          setAgents(mockAgents);
-          setFilteredAgents(mockAgents);
-        }
+        setIsLoading(true);
+        const result = await fetchAgents(pagination.currentPage, 10);
+        setAgents(result.agents);
+        setPagination({
+          currentPage: result.currentPage,
+          totalPages: result.totalPages,
+          totalCount: result.totalCount
+        });
       } catch (error) {
-        console.error('Error fetching agents:', error);
         toast({
-          title: "Error loading agents",
-          description: "There was a problem loading the agents. Using sample data instead.",
+          title: "Error fetching agents",
+          description: error instanceof Error ? error.message : "Failed to load agent data",
           variant: "destructive",
         });
-        // Use mock data as fallback
-        setAgents(mockAgents);
-        setFilteredAgents(mockAgents);
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchAgents();
-  }, [toast]);
+    loadAgents();
+  }, [pagination.currentPage, toast]);
   
   const handleLoginClick = () => {
     setShowAuthForm(true);
   };
+
+  const handleDownload = async (filePath: string) => {
+    await downloadJsonFile(filePath);
+  };
+
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: page
+    }));
+  };
   
-  const handleFilterChange = (type: "importance" | "price", value: string) => {
-    let filtered = [...agents];
+  const renderPaginationItems = () => {
+    const items = [];
+    const maxPages = Math.min(5, pagination.totalPages);
     
-    // Filter by importance
-    if (type === "importance" && value !== "all") {
-      filtered = filtered.filter(agent => agent.importance === value);
+    let startPage = Math.max(1, pagination.currentPage - 2);
+    const endPage = Math.min(pagination.totalPages, startPage + maxPages - 1);
+    
+    // Adjust start page if necessary to show maximum number of pages
+    startPage = Math.max(1, endPage - maxPages + 1);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            onClick={() => handlePageChange(i)}
+            isActive={pagination.currentPage === i}
+          >
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
     }
     
-    // Sort by price
-    if (type === "price") {
-      if (value === "asc") {
-        filtered.sort((a, b) => a.price - b.price);
-      } else if (value === "desc") {
-        filtered.sort((a, b) => b.price - a.price);
-      }
-    }
-    
-    setFilteredAgents(filtered);
+    return items;
   };
   
   return (
@@ -102,34 +122,93 @@ const ServicesPage = () => {
       
       <main className="flex-grow container py-12">
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-brand-navy mb-4">AI Agent Services</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-brand-navy mb-4">Our Services</h1>
           <p className="text-lg text-gray-600">
-            Browse our collection of AI agents designed to boost your business productivity.
+            Browse our collection of AI agents and their capabilities.
           </p>
         </div>
         
-        <AgentFilter onFilterChange={handleFilterChange} />
-        
-        {isLoading ? (
-          <div className="py-16 text-center">
-            <h3 className="text-xl font-medium text-gray-700 mb-2">Loading agents...</h3>
-          </div>
-        ) : (
-          <>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredAgents.map((agent) => (
-                <AgentCard key={agent.id} agent={agent} />
-              ))}
+        <div className="mt-8">
+          {isLoading ? (
+            <div className="text-center p-16">
+              <svg className="animate-spin h-12 w-12 mx-auto text-brand-navy" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="mt-4 text-lg font-medium text-gray-700">Loading agents...</p>
             </div>
-            
-            {filteredAgents.length === 0 && (
-              <div className="py-16 text-center">
-                <h3 className="text-xl font-medium text-gray-700 mb-2">No agents found</h3>
-                <p className="text-gray-500">Try adjusting your filters to find what you're looking for.</p>
+          ) : agents.length > 0 ? (
+            <>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>File</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {agents.map((agent) => (
+                      <TableRow key={agent.id}>
+                        <TableCell className="font-medium">{agent.name}</TableCell>
+                        <TableCell>{agent.description || "No description available"}</TableCell>
+                        <TableCell>{new Date(agent.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDownload(agent.file_path)}
+                          >
+                            Download
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            )}
-          </>
-        )}
+              
+              {pagination.totalPages > 1 && (
+                <div className="mt-6">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => handlePageChange(Math.max(1, pagination.currentPage - 1))}
+                          className={pagination.currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                      
+                      {renderPaginationItems()}
+                      
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => handlePageChange(Math.min(pagination.totalPages, pagination.currentPage + 1))}
+                          className={pagination.currentPage === pagination.totalPages ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center p-16 bg-gray-50 rounded-lg border">
+              <p className="text-lg font-medium text-gray-700">No agents found.</p>
+              <p className="mt-2 text-gray-500">Add your first agent using the admin panel.</p>
+              {isAdmin && (
+                <Button 
+                  className="mt-4 bg-brand-navy hover:bg-opacity-90"
+                  onClick={() => window.location.href = "/admin/upload"}
+                >
+                  Add Agent
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </main>
       
       <Footer />
@@ -140,51 +219,5 @@ const ServicesPage = () => {
     </div>
   );
 };
-
-// Mock data for agents as fallback
-const mockAgents: Agent[] = [
-  {
-    id: "1",
-    name: "Email Automation Agent",
-    description: "Streamline your email workflow with AI that sorts, prioritizes, and responds to emails based on your preferences and past actions.",
-    price: 29.99,
-    importance: "Medium",
-  },
-  {
-    id: "2",
-    name: "Data Analysis Agent",
-    description: "Transform raw data into actionable insights with our AI-powered data analysis tool that automatically identifies trends and patterns.",
-    price: 49.99,
-    importance: "High",
-  },
-  {
-    id: "3",
-    name: "Customer Support Bot",
-    description: "Provide 24/7 customer support with an AI agent that handles common questions and routes complex issues to your team.",
-    price: 39.99,
-    importance: "Medium",
-  },
-  {
-    id: "4",
-    name: "Social Media Manager",
-    description: "Automate your social media presence with an AI that schedules posts, engages with followers, and analyzes performance metrics.",
-    price: 19.99,
-    importance: "Low",
-  },
-  {
-    id: "5",
-    name: "Content Generation Agent",
-    description: "Create high-quality blog posts, product descriptions, and marketing copy with our AI content generator.",
-    price: 59.99,
-    importance: "High",
-  },
-  {
-    id: "6",
-    name: "Meeting Scheduler",
-    description: "Let AI handle the back-and-forth of scheduling meetings, finding optimal times based on everyone's availability.",
-    price: 14.99,
-    importance: "Low",
-  },
-];
 
 export default ServicesPage;
