@@ -18,12 +18,25 @@ export function DownloadAgentButton({ agentId, fileName = "agent-config.json" }:
     setIsLoading(true);
 
     try {
-      // First, check if the user has purchased this agent
+      // First, get the current user session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      
+      if (!userId) {
+        toast({
+          title: "Authentication error",
+          description: "You need to be logged in to download this agent.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Check if the user has purchased this agent
       const { data: purchaseData, error: purchaseError } = await supabase
         .from('purchases')
         .select('*')
         .eq('agent_id', agentId)
-        .eq('user_id', supabase.auth.getSession().then(res => res.data.session?.user.id))
+        .eq('user_id', userId)
         .eq('payment_status', 'completed')
         .single();
 
